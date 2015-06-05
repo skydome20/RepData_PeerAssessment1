@@ -1,25 +1,165 @@
 ---
 title: "Reproducible Research: Peer Assessment 1"
-output: 
+author: "skydome20" 
+date: "2015-06-05, Friday"
+output:
   html_document:
-    keep_md: true
+    css: style.css
+    
 ---
 
 
-## Loading and preprocessing the data
+```{r setOpetions, echo=FALSE, results='hide'}
+Sys.setlocale("LC_TIME", "English")
+```
+
+## 1.Loading and preprocessing the data
+```{r, results='hold'}    
+activity <- read.csv("activity.csv")
+head(activity)
+```
+
+## 2.What is mean total number of steps taken per day?
+Here I call function ```aggregate``` to count steps by per day
+```{r}
+steps_per_day <- aggregate(activity$steps, by=list(activity$date), FUN=sum, na.rm=TRUE) #main code
+names(steps_per_day) <- c('date', 'steps')  #assign column names
+head(steps_per_day)
+```
+
+
+Then create a histogram :
+```{r}
+barplot(steps_per_day$steps, names.arg=steps_per_day$date)
+
+```
+
+
+Finally, get the mean and median of steps taken per day:
+```{r}
+mean(steps_per_day$steps)
+median(steps_per_day$steps)
+```
+
+## 3.What is the average daily activity pattern?
+Also, use ```aggregate``` function to achieve the goal of averaging steps by time series
+```{r}
+means_per_interval <- aggregate(activity$steps, by=list(activity$interval), FUN=mean, na.rm=TRUE) # main code
+names(means_per_interval) <- c("interval", "mean_of_steps") # assign column names
+head(means_per_interval)
+```
+
+
+Then draw a line chart with x="time interval" and y="averaged steps"
+```{r}
+plot(x=means_per_interval$interval, y=means_per_interval$mean_of_steps, type="l", col="blue", xlab="interval", ylab="mean_of_steps")
+```
+
+
+And the max averaged steps is:
+```{r}
+max <- which.max(means_per_interval$mean_of_steps) # find the max steps, and return row_number/index
+means_per_interval[max, "interval"]
+```
+
+
+## 4.Imputing missing values
+```{r}
+sum( is.na(activity$steps)==TRUE )
+```
+
+
+The strategy I use to fill missing values is to fill NAs with "mean for 5-minute interval"(M5MI)
+Thus, first I create a new dataset:
+```{r, results='hide'}
+new.activity <- read.csv("activity.csv")
+```
+
+
+Second, find which row has NAs(missing value) on the "steps" column:
+```{r}
+na_rows <- which(is.na(new.activity$steps) )
+head(na_rows)   #row_number indicates where is NA
+```
+
+
+Finally, assign M5MI(mean for 5-minute interval) to NA
+```{r, results='hide'}
+for (i in 1:length(na_rows)){
+    index <- which( means_per_interval$interval == new.activity[na_rows[i], "interval" ] )
+    new.activity[na_rows[i], "steps"] <- means_per_interval[index, "mean_of_steps"]
+}
+```
+```{r}
+table(is.na(new.activity$steps))
+```
 
 
 
-## What is mean total number of steps taken per day?
+Now, plot a historgam again to compared with the previous hist and results:
+
+It seems different: some days originally have nothing but now are filled. 
+```{r}
+new.steps_per_day <- aggregate(new.activity$steps, by=list(new.activity$date), FUN=sum) #count steps by date
+names(new.steps_per_day) <- c('date', 'steps')  #assign column names
+par(mfrow=c(1,2))
+#old
+barplot(steps_per_day$steps, names.arg=steps_per_day$date, main="old")
+#new
+barplot(new.steps_per_day$steps, names.arg=new.steps_per_day$date, main="new")  
+``` 
+
+
+And the mean and median:
+```{r}
+old_mean <-   mean(steps_per_day$steps)
+old_median <- median(steps_per_day$steps)
+new_mean <-   mean(new.steps_per_day$steps)
+new_median <- median(new.steps_per_day$steps)
+
+c(old_mean, new_mean)
+c(old_median, new_median)
+```
+
+Since we replaces NAs with M5MI, the mean and median are definitely changed! 
+
+
+## 5.Are there differences in activity patterns between weekdays and weekends?
+Create a new varable 'weeklevel' contains 2 factors("weekday", "weekend")
+```{r}
+new.activity$date <- as.Date(new.activity$date, "%Y-%m-%d")
+    
+weeks <- weekdays(new.activity$date)
+daylevel <- vector()
+
+for (i in 1:length(weeks)){
+    if( (weeks[i]=="Sunday") | (weeks[i]=="Saturday") ){
+        daylevel[i] <- "weekend"
+    }
+    else{
+        daylevel[i] <- "weekday"
+    }
+}
+
+```
+```{r}
+new.activity$weeklevel <- factor(daylevel)
+head(new.activity)
+```
+
+
+Similarly, use ```aggregate``` function to calculate means, but this time by 'interval' and 'weeklevel' 
+```{r}
+meanSteps_by_interval_week <- aggregate(new.activity$steps, by=list(new.activity$interval, new.activity$weeklevel), FUN=mean) 
+names(meanSteps_by_interval_week) <- c("interval", "weeklevel", "steps") #assign column names
+```
+
+
+In the end, use Lattice plotting system to draw a line chart 
+```{r}
+library(lattice)
+xyplot(steps ~ interval | weeklevel, meanSteps_by_interval_week, layout = c(1, 2), type = "l", xlab="Interval", ylab="Number of steps")
+```
 
 
 
-## What is the average daily activity pattern?
-
-
-
-## Imputing missing values
-
-
-
-## Are there differences in activity patterns between weekdays and weekends?
